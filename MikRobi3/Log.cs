@@ -7,16 +7,20 @@ namespace MikRobi3
 {
     class Log
     {
+        // Constants
         const string logPath = "/var/log/MikRobi";
         const string logErrorFilename = "error.log";
         const string logSecurityFilename = "security.log";
         const string logMiscFilename = "misc.log";
         const int maxLogsize = 600;
 
+        // Streawriters
         StreamWriter swError;
         StreamWriter swSecurity;
         StreamWriter swMisc;
 
+
+        // Checking if the files and paths exist (if not, creates them), then opens the files
         public void Open()
         {
             if (!Directory.Exists(logPath))
@@ -69,6 +73,8 @@ namespace MikRobi3
             }
         }
 
+
+        // Close the logfiles
         public void Close()
         {
             swError.Close();
@@ -79,6 +85,7 @@ namespace MikRobi3
             swMisc = null;
         }
 
+        // Write a message to the specified logfile
         public void Write(string file, string message)
         {
             switch (file)
@@ -90,6 +97,8 @@ namespace MikRobi3
             CheckFileSize(file);
         }
 
+
+        // Check if file size reaches the limit. If it does then gzips it, then recreates a new empty one
         private void CheckFileSize(string file)
         {
             switch (file)
