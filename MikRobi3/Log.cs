@@ -12,7 +12,7 @@ namespace MikRobi3
         const string logErrorFilename = "error.log";
         const string logSecurityFilename = "security.log";
         const string logMiscFilename = "misc.log";
-        const int maxLogsize = 600;
+        const int maxLogsize = 600000000; // in bytes
 
         // Streawriters
         StreamWriter swError;
@@ -35,7 +35,7 @@ namespace MikRobi3
                     Environment.Exit(1);
                 }
             }
-            if (!File.Exists(logErrorFilename))
+            //if (!File.Exists(logErrorFilename))
             {
                 try
                 {
@@ -47,7 +47,7 @@ namespace MikRobi3
                     Environment.Exit(1);
                 }
             }
-            if (!File.Exists(logSecurityFilename))
+            //if (!File.Exists(logSecurityFilename))
             {
                 try
                 {
@@ -59,7 +59,7 @@ namespace MikRobi3
                     Environment.Exit(1);
                 }
             }
-            if (!File.Exists(logMiscFilename))
+            //if (!File.Exists(logMiscFilename))
             {
                 try
                 {
@@ -101,6 +101,7 @@ namespace MikRobi3
         // Check if file size reaches the limit. If it does then gzips it, then recreates a new empty one
         private void CheckFileSize(string file)
         {
+            string timestring = DateTime.Now.Year.ToString() + DateTime.Now.Month.ToString() + DateTime.Now.Day.ToString() + DateTime.Now.Hour.ToString() + DateTime.Now.Minute.ToString() + DateTime.Now.Second.ToString();
             switch (file)
             {
                 case "error":
@@ -111,6 +112,7 @@ namespace MikRobi3
                         {
                             pProcess.StartInfo.FileName = "gzip";
                             pProcess.StartInfo.Arguments = logPath + "/" + logErrorFilename; //argument
+                            //pProcess.StartInfo.Arguments =  "< " + logPath + "/" + logErrorFilename.Replace(".log", "_") + timestring + ".gz >" + logPath + "/" + logErrorFilename; //argument
                             pProcess.StartInfo.UseShellExecute = false;
                             pProcess.StartInfo.RedirectStandardOutput = true;
                             pProcess.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
@@ -119,6 +121,7 @@ namespace MikRobi3
                             string output = pProcess.StandardOutput.ReadToEnd(); //The output result
                             pProcess.WaitForExit();
                         }
+                        File.Move(logPath + "/" + logErrorFilename + ".gz", logPath + "/" + (logErrorFilename + ".gz").Replace(".gz", "_" + timestring + ".gz"));
                         swError = new StreamWriter(logPath + "/" + logErrorFilename, true, Encoding.UTF8, 65535);
                     }
                     break;
@@ -130,6 +133,7 @@ namespace MikRobi3
                         {
                             pProcess.StartInfo.FileName = "gzip";
                             pProcess.StartInfo.Arguments = logPath + "/" + logSecurityFilename; //argument
+                            //pProcess.StartInfo.Arguments = "< " + logPath + "/" + logSecurityFilename.Replace(".log", "_") + timestring + ".gz >" + logPath + "/" + logSecurityFilename; //argument
                             pProcess.StartInfo.UseShellExecute = false;
                             pProcess.StartInfo.RedirectStandardOutput = true;
                             pProcess.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
@@ -138,6 +142,7 @@ namespace MikRobi3
                             string output = pProcess.StandardOutput.ReadToEnd(); //The output result
                             pProcess.WaitForExit();
                         }
+                        File.Move(logPath + "/" + logSecurityFilename + ".gz", logPath + "/" + (logSecurityFilename + ".gz").Replace(".gz", "_" + timestring + ".gz"));
                         swSecurity = new StreamWriter(logPath + "/" + logSecurityFilename, true, Encoding.UTF8, 65535);
                     }
                     break;
@@ -149,6 +154,7 @@ namespace MikRobi3
                         {
                             pProcess.StartInfo.FileName = "gzip";
                             pProcess.StartInfo.Arguments = logPath + "/" + logMiscFilename; //argument
+                            //pProcess.StartInfo.Arguments = "< " + logPath + "/" + logMiscFilename.Replace(".log", "_") + timestring + ".gz >" + logPath + "/" + logMiscFilename; //argument
                             pProcess.StartInfo.UseShellExecute = false;
                             pProcess.StartInfo.RedirectStandardOutput = true;
                             pProcess.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
@@ -157,6 +163,7 @@ namespace MikRobi3
                             string output = pProcess.StandardOutput.ReadToEnd(); //The output result
                             pProcess.WaitForExit();
                         }
+                        File.Move(logPath + "/" + logMiscFilename + ".gz", logPath + "/" + (logMiscFilename + ".gz").Replace(".gz", "_" + timestring + ".gz"));
                         swMisc = new StreamWriter(logPath + "/" + logMiscFilename, true, Encoding.UTF8, 65535);
                     }
                     break;

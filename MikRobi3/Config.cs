@@ -28,6 +28,18 @@ namespace MikRobi3
                     Environment.Exit(1);
                 }
             }
+            else
+            {
+                try
+                {
+                    File.Copy(confFilename.Replace(".conf", ".sample.conf"), confPath + "/" + confFilename);
+                }
+                catch
+                {
+                    Console.WriteLine("Failed to copy the " + confFilename + " sample file.");
+                    Environment.Exit(1);
+                }
+            }
             string line, argument, value;
             int count = 0;
             try
