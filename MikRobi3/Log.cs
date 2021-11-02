@@ -13,7 +13,7 @@ namespace MikRobi3
         const string logSecurityFilename = "security.log";
         const string logMiscFilename = "misc.log";
         const int maxLogsize = 600000000; // in bytes
-
+        
         // Streawriters
         StreamWriter swError;
         StreamWriter swSecurity;
