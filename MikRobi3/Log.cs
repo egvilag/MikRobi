@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
+using System.Threading;
 
 namespace MikRobi3
 {
@@ -9,16 +10,21 @@ namespace MikRobi3
     {
         // Constants
         const string logPath = "/var/log/MikRobi";
-        const string logErrorFilename = "error.log";
-        const string logSecurityFilename = "security.log";
-        const string logMiscFilename = "misc.log";
+        const string logErrorFilename = "error_[dow].log";
+        const string logSecurityFilename = "security_[dow].log";
+        const string logMiscFilename = "misc_[dow].log";
         const int maxLogsize = 600000000; // in bytes
-        
+        //const int maxLogsize = 433; // in bytes
+
         // Streawriters
         StreamWriter swError;
         StreamWriter swSecurity;
         StreamWriter swMisc;
 
+        // Buffers to use when files are closed
+        List<string> logErrorMemory = new List<string>();
+        List<string> logSecurityMemory = new List<string>();
+        List<string> logMiscMemory = new List<string>();
 
         // Checking if the files and paths exist (if not, creates them), then opens the files
         public void Open()
@@ -35,39 +41,51 @@ namespace MikRobi3
                     Environment.Exit(1);
                 }
             }
+            if (!Directory.Exists(logPath  +"/Archive"))
+            {
+                try
+                {
+                    Directory.CreateDirectory(logPath + "/Archive");
+                }
+                catch
+                {
+                    Console.WriteLine("Log path not found, failed to create directory: " + logPath);
+                    Environment.Exit(1);
+                }
+            }
             //if (!File.Exists(logErrorFilename))
             {
                 try
                 {
-                    swError = new StreamWriter(logPath + "/" + logErrorFilename, true, Encoding.UTF8, 65535);
+                    swError = new StreamWriter(logPath + "/" + GetFileName(logErrorFilename, false), true, Encoding.UTF8, 65535);
                 }
                 catch
                 {
-                    Console.WriteLine("Failed to open the " + logErrorFilename + " file for write.");
+                    Console.WriteLine("Failed to open the " + GetFileName(logErrorFilename, false) + " file for write.");
                     Environment.Exit(1);
                 }
             }
-            //if (!File.Exists(logSecurityFilename))
+            //if (!File.Exists(GetFileName(logSecurityFilename)))
             {
                 try
                 {
-                    swSecurity = new StreamWriter(logPath + "/" + logSecurityFilename, true, Encoding.UTF8, 65535);
+                    swSecurity = new StreamWriter(logPath + "/" + GetFileName(logSecurityFilename, false), true, Encoding.UTF8, 65535);
                 }
                 catch
                 {
-                    Console.WriteLine("Failed to open the " + logSecurityFilename + " file for write.");
+                    Console.WriteLine("Failed to open the " + GetFileName(logSecurityFilename, false) + " file for write.");
                     Environment.Exit(1);
                 }
             }
-            //if (!File.Exists(logMiscFilename))
+            //if (!File.Exists(GetFileName(logMiscFilename)))
             {
                 try
                 {
-                    swMisc = new StreamWriter(logPath + "/" + logMiscFilename, true, Encoding.UTF8, 65535);
+                    swMisc = new StreamWriter(logPath + "/" + GetFileName(logMiscFilename, false), true, Encoding.UTF8, 65535);
                 }
                 catch
                 {
-                    Console.WriteLine("Failed to open the " + logMiscFilename + " file for write.");
+                    Console.WriteLine("Failed to open the " + GetFileName(logMiscFilename, false) + " file for write.");
                     Environment.Exit(1);
                 }
             }
@@ -78,21 +96,44 @@ namespace MikRobi3
         public void Close()
         {
             swError.Close();
+            swError.Dispose();
             swError = null;
             swSecurity.Close();
+            swSecurity.Dispose();
             swSecurity = null;
             swMisc.Close();
+            swMisc.Dispose();
             swMisc = null;
         }
 
-        // Write a message to the specified logfile
+        // Write a message to the specified logfile (or into memory, if file is closed)
         public void Write(string file, string message)
         {
             switch (file)
             {
-                case "error": swError.WriteLine(DateTime.Now.ToString() + "\t> " + message); swError.Flush(); break;
-                case "security": swSecurity.WriteLine(DateTime.Now.ToString() + "\t> " + message); swSecurity.Flush(); break;
-                case "misc": swMisc.WriteLine(DateTime.Now.ToString() + "\t> " + message); swMisc.Flush(); break;
+                case "error":
+                    if (swError != null)
+                    {
+                        swError.WriteLine(DateTime.Now.ToString() + "\t> " + message);
+                        swError.Flush();
+                    }
+                    else logErrorMemory.Add(DateTime.Now.ToString() + "\t> " + message);
+                    break;
+                case "security":
+                    if (swSecurity != null)
+                    {
+                        swSecurity.WriteLine(DateTime.Now.ToString() + "\t> " + message);
+                        swSecurity.Flush();
+                    }
+                    else logSecurityMemory.Add(DateTime.Now.ToString() + "\t> " + message);
+                    break;
+                case "misc":
+                    if (swMisc != null)
+                    {
+                        swMisc.WriteLine(DateTime.Now.ToString() + "\t> " + message); swMisc.Flush();
+                    }
+                    else logMiscMemory.Add(DateTime.Now.ToString() + "\t> " + message);
+                    break;
             }
             CheckFileSize(file);
         }
@@ -101,73 +142,164 @@ namespace MikRobi3
         // Check if file size reaches the limit. If it does then gzips it, then recreates a new empty one
         private void CheckFileSize(string file)
         {
-            string timestring = DateTime.Now.Year.ToString() + DateTime.Now.Month.ToString() + DateTime.Now.Day.ToString() + DateTime.Now.Hour.ToString() + DateTime.Now.Minute.ToString() + DateTime.Now.Second.ToString();
+            //string timestring = DateTime.Now.Year.ToString() + DateTime.Now.Month.ToString() + DateTime.Now.Day.ToString() + DateTime.Now.Hour.ToString() + DateTime.Now.Minute.ToString() + DateTime.Now.Second.ToString();
             switch (file)
             {
                 case "error":
-                    if (new FileInfo(logPath + "/" + logErrorFilename).Length > maxLogsize)
+                    if (new FileInfo(logPath + "/" + GetFileName(logErrorFilename, false)).Length > maxLogsize)
                     {
                         swError.Close();
-                        using (System.Diagnostics.Process pProcess = new System.Diagnostics.Process())
+                        swError.Dispose();
+                        swError = null;
+                        //using (System.Diagnostics.Process pProcess = new System.Diagnostics.Process())
+                        //{
+                        //    pProcess.StartInfo.FileName = "gzip";
+                        //    pProcess.StartInfo.Arguments = logPath + "/" + GetFileName(logErrorFilename, false); //argument
+                        //    //pProcess.StartInfo.Arguments =  "< " + logPath + "/" + logErrorFilename.Replace(".log", "_") + timestring + ".gz >" + logPath + "/" + logErrorFilename; //argument
+                        //    pProcess.StartInfo.UseShellExecute = false;
+                        //    pProcess.StartInfo.RedirectStandardOutput = true;
+                        //    pProcess.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+                        //    pProcess.StartInfo.CreateNoWindow = true; //not diplay a windows
+                        //    pProcess.Start();
+                        //    string output = pProcess.StandardOutput.ReadToEnd(); //The output result
+                        //    pProcess.WaitForExit();
+                        //}
+                        //File.Move(logPath + "/" + GetFileName(logErrorFilename, false) + ".gz", logPath + "/" + (logErrorFilename + ".gz").Replace(".gz", "_" + timestring + ".gz"));
+                        swError = new StreamWriter(logPath + "/" + GetFileName(logErrorFilename, true), true, Encoding.UTF8, 65535);
+                        foreach (string s in logErrorMemory)
                         {
-                            pProcess.StartInfo.FileName = "gzip";
-                            pProcess.StartInfo.Arguments = logPath + "/" + logErrorFilename; //argument
-                            //pProcess.StartInfo.Arguments =  "< " + logPath + "/" + logErrorFilename.Replace(".log", "_") + timestring + ".gz >" + logPath + "/" + logErrorFilename; //argument
-                            pProcess.StartInfo.UseShellExecute = false;
-                            pProcess.StartInfo.RedirectStandardOutput = true;
-                            pProcess.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
-                            pProcess.StartInfo.CreateNoWindow = true; //not diplay a windows
-                            pProcess.Start();
-                            string output = pProcess.StandardOutput.ReadToEnd(); //The output result
-                            pProcess.WaitForExit();
+                            swError.WriteLine(s);
+                            swError.Flush();
                         }
-                        File.Move(logPath + "/" + logErrorFilename + ".gz", logPath + "/" + (logErrorFilename + ".gz").Replace(".gz", "_" + timestring + ".gz"));
-                        swError = new StreamWriter(logPath + "/" + logErrorFilename, true, Encoding.UTF8, 65535);
+                        logErrorMemory.Clear();
+
                     }
                     break;
                 case "security":
-                    if (new FileInfo(logPath + "/" + logSecurityFilename).Length > maxLogsize)
+                    if (new FileInfo(logPath + "/" + GetFileName(logSecurityFilename, false)).Length > maxLogsize)
                     {
                         swSecurity.Close();
-                        using (System.Diagnostics.Process pProcess = new System.Diagnostics.Process())
+                        swSecurity.Dispose();
+                        swSecurity = null;
+                        //using (System.Diagnostics.Process pProcess = new System.Diagnostics.Process())
+                        //{
+                        //    pProcess.StartInfo.FileName = "gzip";
+                        //    pProcess.StartInfo.Arguments = logPath + "/" + GetFileName(logSecurityFilename, false); //argument
+                        //    //pProcess.StartInfo.Arguments = "< " + logPath + "/" + GetFileName(logSecurityFilename).Replace(".log", "_") + timestring + ".gz >" + logPath + "/" + GetFileName(logSecurityFilename); //argument
+                        //    pProcess.StartInfo.UseShellExecute = false;
+                        //    pProcess.StartInfo.RedirectStandardOutput = true;
+                        //    pProcess.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+                        //    pProcess.StartInfo.CreateNoWindow = true; //not diplay a windows
+                        //    pProcess.Start();
+                        //    string output = pProcess.StandardOutput.ReadToEnd(); //The output result
+                        //    pProcess.WaitForExit();
+                        //}
+                        //File.Move(logPath + "/" + GetFileName(logSecurityFilename, false) + ".gz", logPath + "/" + (GetFileName(logSecurityFilename, false) + ".gz").Replace(".gz", "_" + timestring + ".gz"));
+                        swSecurity = new StreamWriter(logPath + "/" + GetFileName(logSecurityFilename, true), true, Encoding.UTF8, 65535);
+                        foreach (string s in logSecurityMemory)
                         {
-                            pProcess.StartInfo.FileName = "gzip";
-                            pProcess.StartInfo.Arguments = logPath + "/" + logSecurityFilename; //argument
-                            //pProcess.StartInfo.Arguments = "< " + logPath + "/" + logSecurityFilename.Replace(".log", "_") + timestring + ".gz >" + logPath + "/" + logSecurityFilename; //argument
-                            pProcess.StartInfo.UseShellExecute = false;
-                            pProcess.StartInfo.RedirectStandardOutput = true;
-                            pProcess.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
-                            pProcess.StartInfo.CreateNoWindow = true; //not diplay a windows
-                            pProcess.Start();
-                            string output = pProcess.StandardOutput.ReadToEnd(); //The output result
-                            pProcess.WaitForExit();
+                            swSecurity.WriteLine(s);
+                            swSecurity.Flush();
                         }
-                        File.Move(logPath + "/" + logSecurityFilename + ".gz", logPath + "/" + (logSecurityFilename + ".gz").Replace(".gz", "_" + timestring + ".gz"));
-                        swSecurity = new StreamWriter(logPath + "/" + logSecurityFilename, true, Encoding.UTF8, 65535);
+                        logSecurityMemory.Clear();
                     }
                     break;
                 case "misc": 
-                    if (new FileInfo(logPath + "/" + logMiscFilename).Length > maxLogsize)
+                    if (new FileInfo(logPath + "/" + GetFileName(logMiscFilename, false)).Length > maxLogsize)
                     {
                         swMisc.Close();
-                        using (System.Diagnostics.Process pProcess = new System.Diagnostics.Process())
+                        swMisc.Dispose();
+                        swMisc = null;
+                        //using (System.Diagnostics.Process pProcess = new System.Diagnostics.Process())
+                        //{
+                        //    pProcess.StartInfo.FileName = "gzip";
+                        //    pProcess.StartInfo.Arguments = logPath + "/" + GetFileName(logMiscFilename, false); //argument
+                        //    //pProcess.StartInfo.Arguments = "< " + logPath + "/" + GetFileName(logMiscFilename).Replace(".log", "_") + timestring + ".gz >" + logPath + "/" + GetFileName(logMiscFilename); //argument
+                        //    pProcess.StartInfo.UseShellExecute = false;
+                        //    pProcess.StartInfo.RedirectStandardOutput = true;
+                        //    pProcess.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+                        //    pProcess.StartInfo.CreateNoWindow = true; //not diplay a windows
+                        //    pProcess.Start();
+                        //    string output = pProcess.StandardOutput.ReadToEnd(); //The output result
+                        //    pProcess.WaitForExit();
+                        //}
+                        //File.Move(logPath + "/" + GetFileName(logMiscFilename, false) + ".gz", logPath + "/" + (GetFileName(logMiscFilename, false) + ".gz").Replace(".gz", "_" + timestring + ".gz"));
+                        swMisc = new StreamWriter(logPath + "/" + GetFileName(logMiscFilename, true), true, Encoding.UTF8, 65535);
+                        foreach (string s in logMiscMemory)
                         {
-                            pProcess.StartInfo.FileName = "gzip";
-                            pProcess.StartInfo.Arguments = logPath + "/" + logMiscFilename; //argument
-                            //pProcess.StartInfo.Arguments = "< " + logPath + "/" + logMiscFilename.Replace(".log", "_") + timestring + ".gz >" + logPath + "/" + logMiscFilename; //argument
-                            pProcess.StartInfo.UseShellExecute = false;
-                            pProcess.StartInfo.RedirectStandardOutput = true;
-                            pProcess.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
-                            pProcess.StartInfo.CreateNoWindow = true; //not diplay a windows
-                            pProcess.Start();
-                            string output = pProcess.StandardOutput.ReadToEnd(); //The output result
-                            pProcess.WaitForExit();
+                            swMisc.WriteLine(s);
+                            swMisc.Flush();
                         }
-                        File.Move(logPath + "/" + logMiscFilename + ".gz", logPath + "/" + (logMiscFilename + ".gz").Replace(".gz", "_" + timestring + ".gz"));
-                        swMisc = new StreamWriter(logPath + "/" + logMiscFilename, true, Encoding.UTF8, 65535);
+                        logMiscMemory.Clear();
                     }
                     break;
             }
+        }
+
+        public string GetFileName(string constFilename, bool next)
+        {
+            string name = constFilename.Replace("[dow]", DateTime.Now.DayOfWeek.ToString().Substring(0, 2));
+            string[] files = Directory.GetFiles(logPath); 
+            //List<int> numbers = new List<int>();
+            int number = 0;
+            string fname;
+            foreach (string s in files)
+            {
+                fname = Path.GetFileName(s);
+                if ((fname.Split('_')[0] + fname.Split('_')[1].Substring(0, 2) == name.Split('_')[0] + name.Split('_')[1].Substring(0, 2)) && (fname.Split('_').Length > 2))
+                    if (Convert.ToInt32(fname.Split('_')[2].Split('.')[0]) > number)
+                        number = Convert.ToInt32(fname.Split('_')[2].Split('.')[0]);
+            }
+            if (number == 0)
+            {
+                if (next)
+                    name = name.Replace(".log", "_" + (number + 1).ToString() + ".log");
+            }
+            else
+            {
+                if (next)
+                    name = name.Replace(name.Split('_')[1].Split('.')[0], name.Split('_')[1].Split('.')[0] + "_" + (number + 1).ToString());
+                else
+                    name = name.Replace(name.Split('_')[1].Split('.')[0], name.Split('_')[1].Split('.')[0] + "_" + number.ToString());
+            }
+
+
+            //if (next) number++;
+            //if (number > 0)
+            //{
+            //    name = name.Replace(".log", "_" + number.ToString() + ".log");
+            //}
+            return name;
+        }
+
+        public void Archive()
+        {
+            string timestring = DateTime.Now.Year.ToString() + DateTime.Now.Month.ToString() + DateTime.Now.Day.ToString() + DateTime.Now.Hour.ToString() + DateTime.Now.Minute.ToString() + DateTime.Now.Second.ToString();
+            this.Close();
+            //string s;
+            using (System.Diagnostics.Process pProcess = new System.Diagnostics.Process())
+            {
+                //s = "--remove-files";
+                pProcess.StartInfo.FileName = "tar";
+                pProcess.StartInfo.Arguments = "--no-recursion -zcvf " + logPath + "/Archive/mikrobi_" + timestring + ".tar.gz " + logPath + "/*"; //argument
+                //pProcess.StartInfo.Arguments = "< " + logPath + "/" + GetFileName(logMiscFilename).Replace(".log", "_") + timestring + ".gz >" + logPath + "/" + GetFileName(logMiscFilename); //argument
+                pProcess.StartInfo.UseShellExecute = false;
+                pProcess.StartInfo.RedirectStandardOutput = true;
+                pProcess.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+                pProcess.StartInfo.CreateNoWindow = true; //not diplay a windows
+                pProcess.Start();
+                string output = pProcess.StandardOutput.ReadToEnd(); //The output result
+                pProcess.WaitForExit();
+            }
+            System.IO.DirectoryInfo di = new DirectoryInfo(logPath);
+
+            foreach (FileInfo file in di.GetFiles())
+            {
+                file.Delete();
+            }
+            //File.Move(Directory.GetFiles(logPath, "*.gz")[0], logPath + "/Archive/" + Path.GetFileName(Directory.GetFiles(logPath, "*.gz")[0]).Replace(".gz", "_" + timestring + ".gz"));
+            //File.Move(logPath + "/" + GetFileName(logMiscFilename, false) + ".gz", logPath + "/" + (GetFileName(logMiscFilename, false) + ".gz").Replace(".gz", "_" + timestring + ".gz"));
+            this.Open();
         }
     }
 }

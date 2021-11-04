@@ -60,5 +60,11 @@ namespace MikRobi3
                 Program.log.Write("security", "Error accepting connection: " + ex.Message);
             }
         }
+
+        public void StopListen()
+        {
+            if (clientSocket != null) clientSocket.Close();
+            serverSocket.Close();
+        }
     }
 }
