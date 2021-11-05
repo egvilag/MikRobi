@@ -109,30 +109,31 @@ namespace MikRobi3
         // Write a message to the specified logfile (or into memory, if file is closed)
         public void Write(string file, string message)
         {
+            int unixTime = Convert.ToInt32((DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds);
             switch (file)
             {
                 case "error":
                     if (swError != null)
                     {
-                        swError.WriteLine(DateTime.Now.ToString() + "\t> " + message);
+                        swError.WriteLine(unixTime.ToString() + "-" + DateTime.Now.ToString() + "\t> " + message);
                         swError.Flush();
                     }
-                    else logErrorMemory.Add(DateTime.Now.ToString() + "\t> " + message);
+                    else logErrorMemory.Add(unixTime.ToString() + "-" + DateTime.Now.ToString() + "\t> " + message);
                     break;
                 case "security":
                     if (swSecurity != null)
                     {
-                        swSecurity.WriteLine(DateTime.Now.ToString() + "\t> " + message);
+                        swSecurity.WriteLine(unixTime.ToString() + "-" + DateTime.Now.ToString() + "\t> " + message);
                         swSecurity.Flush();
                     }
-                    else logSecurityMemory.Add(DateTime.Now.ToString() + "\t> " + message);
+                    else logSecurityMemory.Add(unixTime.ToString() + "-" + DateTime.Now.ToString() + "\t> " + message);
                     break;
                 case "misc":
                     if (swMisc != null)
                     {
-                        swMisc.WriteLine(DateTime.Now.ToString() + "\t> " + message); swMisc.Flush();
+                        swMisc.WriteLine(unixTime.ToString() + "-" + DateTime.Now.ToString() + "\t> " + message); swMisc.Flush();
                     }
-                    else logMiscMemory.Add(DateTime.Now.ToString() + "\t> " + message);
+                    else logMiscMemory.Add(unixTime.ToString() + "-" + DateTime.Now.ToString() + "\t> " + message);
                     break;
             }
             CheckFileSize(file);
@@ -238,6 +239,17 @@ namespace MikRobi3
 
         public string GetFileName(string constFilename, bool next)
         {
+            Dictionary<string, string> days = new Dictionary<string, string>()
+            {
+                { "Mo", "Hé" },
+                { "Tu", "Ke" },
+                { "We", "Sze" },
+                { "Th", "Cs" },
+                { "Fr", "Pé" },
+                { "Sa", "Szo" },
+                { "Su", "Va" }
+
+            };
             string name = constFilename.Replace("[dow]", DateTime.Now.DayOfWeek.ToString().Substring(0, 2));
             string[] files = Directory.GetFiles(logPath); 
             //List<int> numbers = new List<int>();
@@ -275,13 +287,14 @@ namespace MikRobi3
         public void Archive()
         {
             string timestring = DateTime.Now.Year.ToString() + DateTime.Now.Month.ToString() + DateTime.Now.Day.ToString() + DateTime.Now.Hour.ToString() + DateTime.Now.Minute.ToString() + DateTime.Now.Second.ToString();
+            int unixTime = Convert.ToInt32((DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds);
             this.Close();
             //string s;
             using (System.Diagnostics.Process pProcess = new System.Diagnostics.Process())
             {
                 //s = "--remove-files";
                 pProcess.StartInfo.FileName = "tar";
-                pProcess.StartInfo.Arguments = "--no-recursion -zcvf " + logPath + "/Archive/mikrobi_" + timestring + ".tar.gz " + logPath + "/*"; //argument
+                pProcess.StartInfo.Arguments = "--no-recursion -zcvf " + logPath + "/Archive/mikrobi_" + unixTime.ToString() + "-" + timestring + ".tar.gz " + logPath + "/*"; //argument
                 //pProcess.StartInfo.Arguments = "< " + logPath + "/" + GetFileName(logMiscFilename).Replace(".log", "_") + timestring + ".gz >" + logPath + "/" + GetFileName(logMiscFilename); //argument
                 pProcess.StartInfo.UseShellExecute = false;
                 pProcess.StartInfo.RedirectStandardOutput = true;
