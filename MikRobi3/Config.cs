@@ -8,7 +8,7 @@ namespace MikRobi3
     class Config
     {
         // Constants
-        const string confPath = "/etc/dev/MikRobi";
+        const string confPath = "/etc/MikRobi";
         const string confFilename = "mikrobi.conf";
 
         StreamReader srConfig;
@@ -46,12 +46,15 @@ namespace MikRobi3
             {
                 while ((line = srConfig.ReadLine()) != null)
                 {
-                    argument = line.Split('=')[0];
-                    value = line.Split('=')[1];
-                    Program.settings[argument] = value;
-                    count++;
+                    if ((!line.StartsWith("#")) && (Program.settings.ContainsKey(line.Split("=")[0].ToLower())))
+                    {
+                        argument = line.Split('=')[0].ToLower();
+                        value = line.Split('=')[1];
+                        Program.settings[argument] = value;
+                        count++;
+                    }
                 }
-                if (count < Program.settings.Keys.Count) throw new Exception();
+                //if (count < Program.settings.Keys.Count) throw new Exception();
             }
             catch
             {

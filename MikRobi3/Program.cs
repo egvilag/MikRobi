@@ -10,6 +10,7 @@ namespace MikRobi3
         public static Log log;
         public static Config config;
         public static Network network;
+        public static Database database;
 
         public static Dictionary<string, string> settings;
 
@@ -28,16 +29,29 @@ namespace MikRobi3
 
             settings = new Dictionary<string, string>()
             {
-                { "ListenPort", ""}
+                { "listenport", "8888"},
+                { "maxlogsize", "5120" },
+                { "sql-server", "" },
+                { "sql-port", "" },
+                { "sql-user", "" },
+                { "sql-password", "" },
+                { "sql-database", "" }
             };
+
             timer = new Timer(TimerRing, null, 0, 1000);
+
+            config = new Config();
+            config.Read();
+
             log = new Log();
             log.Open();
             log.Write("misc", "Program started.");
-            config = new Config();
-            config.Read();
+
+            database = new Database();
+            database.TestDB();
+
             network = new Network();
-            network.StartListen(Convert.ToInt32(settings["ListenPort"]), "127.0.0.1");
+            network.StartListen(Convert.ToInt32(settings["listenport"]), "127.0.0.1");
             Console.WriteLine("Esc to stop.");
             ConsoleKey s;
             do
@@ -46,6 +60,7 @@ namespace MikRobi3
             } while (s != ConsoleKey.Escape);
 
             network.StopListen();
+
             log.Write("misc", "Program Stopped.");
             log.Close();
         }

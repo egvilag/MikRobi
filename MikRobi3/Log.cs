@@ -12,18 +12,19 @@ namespace MikRobi3
         const string logPath = "/var/log/MikRobi";
         const string logErrorFilename = "error_[dow].log";
         const string logSecurityFilename = "security_[dow].log";
+        const string logDatabaseFilename = "database_[dow].log";
         const string logMiscFilename = "misc_[dow].log";
-        const int maxLogsize = 600000000; // in bytes
-        //const int maxLogsize = 433; // in bytes
 
         // Streawriters
         StreamWriter swError;
         StreamWriter swSecurity;
+        StreamWriter swDatabase;
         StreamWriter swMisc;
 
         // Buffers to use when files are closed
         List<string> logErrorMemory = new List<string>();
         List<string> logSecurityMemory = new List<string>();
+        List<string> logDatabaseMemory = new List<string>();
         List<string> logMiscMemory = new List<string>();
 
         // Checking if the files and paths exist (if not, creates them), then opens the files
@@ -53,41 +54,41 @@ namespace MikRobi3
                     Environment.Exit(1);
                 }
             }
-            //if (!File.Exists(logErrorFilename))
+            try
             {
-                try
-                {
-                    swError = new StreamWriter(logPath + "/" + GetFileName(logErrorFilename, false), true, Encoding.UTF8, 65535);
-                }
-                catch
-                {
-                    Console.WriteLine("Failed to open the " + GetFileName(logErrorFilename, false) + " file for write.");
-                    Environment.Exit(1);
-                }
+                swError = new StreamWriter(logPath + "/" + GetFileName(logErrorFilename, false), true, Encoding.UTF8, 65535);
             }
-            //if (!File.Exists(GetFileName(logSecurityFilename)))
+            catch
             {
-                try
-                {
-                    swSecurity = new StreamWriter(logPath + "/" + GetFileName(logSecurityFilename, false), true, Encoding.UTF8, 65535);
-                }
-                catch
-                {
-                    Console.WriteLine("Failed to open the " + GetFileName(logSecurityFilename, false) + " file for write.");
-                    Environment.Exit(1);
-                }
+                Console.WriteLine("Failed to open the " + GetFileName(logErrorFilename, false) + " file for write.");
+                Environment.Exit(1);
             }
-            //if (!File.Exists(GetFileName(logMiscFilename)))
+            try
             {
-                try
-                {
-                    swMisc = new StreamWriter(logPath + "/" + GetFileName(logMiscFilename, false), true, Encoding.UTF8, 65535);
-                }
-                catch
-                {
-                    Console.WriteLine("Failed to open the " + GetFileName(logMiscFilename, false) + " file for write.");
-                    Environment.Exit(1);
-                }
+                swSecurity = new StreamWriter(logPath + "/" + GetFileName(logSecurityFilename, false), true, Encoding.UTF8, 65535);
+            }
+            catch
+            {
+                Console.WriteLine("Failed to open the " + GetFileName(logSecurityFilename, false) + " file for write.");
+                Environment.Exit(1);
+            }
+            try
+            {
+                swDatabase = new StreamWriter(logPath + "/" + GetFileName(logDatabaseFilename, false), true, Encoding.UTF8, 65535);
+            }
+            catch
+            {
+                Console.WriteLine("Failed to open the " + GetFileName(logDatabaseFilename, false) + " file for write.");
+                Environment.Exit(1);
+            }
+            try
+            {
+                swMisc = new StreamWriter(logPath + "/" + GetFileName(logMiscFilename, false), true, Encoding.UTF8, 65535);
+            }
+            catch
+            {
+                Console.WriteLine("Failed to open the " + GetFileName(logMiscFilename, false) + " file for write.");
+                Environment.Exit(1);
             }
         }
 
@@ -101,6 +102,9 @@ namespace MikRobi3
             swSecurity.Close();
             swSecurity.Dispose();
             swSecurity = null;
+            swDatabase.Close();
+            swDatabase.Dispose();
+            swDatabase = null;
             swMisc.Close();
             swMisc.Dispose();
             swMisc = null;
@@ -128,6 +132,14 @@ namespace MikRobi3
                     }
                     else logSecurityMemory.Add(unixTime.ToString() + "-" + DateTime.Now.ToString() + "\t> " + message);
                     break;
+                case "database":
+                    if (swDatabase != null)
+                    {
+                        swDatabase.WriteLine(unixTime.ToString() + "-" + DateTime.Now.ToString() + "\t> " + message);
+                        swDatabase.Flush();
+                    }
+                    else logDatabaseMemory.Add(unixTime.ToString() + "-" + DateTime.Now.ToString() + "\t> " + message);
+                    break;
                 case "misc":
                     if (swMisc != null)
                     {
@@ -147,25 +159,11 @@ namespace MikRobi3
             switch (file)
             {
                 case "error":
-                    if (new FileInfo(logPath + "/" + GetFileName(logErrorFilename, false)).Length > maxLogsize)
+                    if (new FileInfo(logPath + "/" + GetFileName(logErrorFilename, false)).Length > Convert.ToInt32(Program.settings["maxlogsize"]))
                     {
                         swError.Close();
                         swError.Dispose();
                         swError = null;
-                        //using (System.Diagnostics.Process pProcess = new System.Diagnostics.Process())
-                        //{
-                        //    pProcess.StartInfo.FileName = "gzip";
-                        //    pProcess.StartInfo.Arguments = logPath + "/" + GetFileName(logErrorFilename, false); //argument
-                        //    //pProcess.StartInfo.Arguments =  "< " + logPath + "/" + logErrorFilename.Replace(".log", "_") + timestring + ".gz >" + logPath + "/" + logErrorFilename; //argument
-                        //    pProcess.StartInfo.UseShellExecute = false;
-                        //    pProcess.StartInfo.RedirectStandardOutput = true;
-                        //    pProcess.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
-                        //    pProcess.StartInfo.CreateNoWindow = true; //not diplay a windows
-                        //    pProcess.Start();
-                        //    string output = pProcess.StandardOutput.ReadToEnd(); //The output result
-                        //    pProcess.WaitForExit();
-                        //}
-                        //File.Move(logPath + "/" + GetFileName(logErrorFilename, false) + ".gz", logPath + "/" + (logErrorFilename + ".gz").Replace(".gz", "_" + timestring + ".gz"));
                         swError = new StreamWriter(logPath + "/" + GetFileName(logErrorFilename, true), true, Encoding.UTF8, 65535);
                         foreach (string s in logErrorMemory)
                         {
@@ -177,25 +175,11 @@ namespace MikRobi3
                     }
                     break;
                 case "security":
-                    if (new FileInfo(logPath + "/" + GetFileName(logSecurityFilename, false)).Length > maxLogsize)
+                    if (new FileInfo(logPath + "/" + GetFileName(logSecurityFilename, false)).Length > Convert.ToInt32(Program.settings["maxlogsize"]))
                     {
                         swSecurity.Close();
                         swSecurity.Dispose();
                         swSecurity = null;
-                        //using (System.Diagnostics.Process pProcess = new System.Diagnostics.Process())
-                        //{
-                        //    pProcess.StartInfo.FileName = "gzip";
-                        //    pProcess.StartInfo.Arguments = logPath + "/" + GetFileName(logSecurityFilename, false); //argument
-                        //    //pProcess.StartInfo.Arguments = "< " + logPath + "/" + GetFileName(logSecurityFilename).Replace(".log", "_") + timestring + ".gz >" + logPath + "/" + GetFileName(logSecurityFilename); //argument
-                        //    pProcess.StartInfo.UseShellExecute = false;
-                        //    pProcess.StartInfo.RedirectStandardOutput = true;
-                        //    pProcess.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
-                        //    pProcess.StartInfo.CreateNoWindow = true; //not diplay a windows
-                        //    pProcess.Start();
-                        //    string output = pProcess.StandardOutput.ReadToEnd(); //The output result
-                        //    pProcess.WaitForExit();
-                        //}
-                        //File.Move(logPath + "/" + GetFileName(logSecurityFilename, false) + ".gz", logPath + "/" + (GetFileName(logSecurityFilename, false) + ".gz").Replace(".gz", "_" + timestring + ".gz"));
                         swSecurity = new StreamWriter(logPath + "/" + GetFileName(logSecurityFilename, true), true, Encoding.UTF8, 65535);
                         foreach (string s in logSecurityMemory)
                         {
@@ -205,26 +189,27 @@ namespace MikRobi3
                         logSecurityMemory.Clear();
                     }
                     break;
+                case "database":
+                    if (new FileInfo(logPath + "/" + GetFileName(logDatabaseFilename, false)).Length > Convert.ToInt32(Program.settings["maxlogsize"]))
+                    {
+                        swDatabase.Close();
+                        swDatabase.Dispose();
+                        swDatabase = null;
+                        swDatabase = new StreamWriter(logPath + "/" + GetFileName(logDatabaseFilename, true), true, Encoding.UTF8, 65535);
+                        foreach (string s in logDatabaseMemory)
+                        {
+                            swDatabase.WriteLine(s);
+                            swDatabase.Flush();
+                        }
+                        logDatabaseMemory.Clear();
+                    }
+                    break;
                 case "misc": 
-                    if (new FileInfo(logPath + "/" + GetFileName(logMiscFilename, false)).Length > maxLogsize)
+                    if (new FileInfo(logPath + "/" + GetFileName(logMiscFilename, false)).Length > Convert.ToInt32(Program.settings["maxlogsize"]))
                     {
                         swMisc.Close();
                         swMisc.Dispose();
                         swMisc = null;
-                        //using (System.Diagnostics.Process pProcess = new System.Diagnostics.Process())
-                        //{
-                        //    pProcess.StartInfo.FileName = "gzip";
-                        //    pProcess.StartInfo.Arguments = logPath + "/" + GetFileName(logMiscFilename, false); //argument
-                        //    //pProcess.StartInfo.Arguments = "< " + logPath + "/" + GetFileName(logMiscFilename).Replace(".log", "_") + timestring + ".gz >" + logPath + "/" + GetFileName(logMiscFilename); //argument
-                        //    pProcess.StartInfo.UseShellExecute = false;
-                        //    pProcess.StartInfo.RedirectStandardOutput = true;
-                        //    pProcess.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
-                        //    pProcess.StartInfo.CreateNoWindow = true; //not diplay a windows
-                        //    pProcess.Start();
-                        //    string output = pProcess.StandardOutput.ReadToEnd(); //The output result
-                        //    pProcess.WaitForExit();
-                        //}
-                        //File.Move(logPath + "/" + GetFileName(logMiscFilename, false) + ".gz", logPath + "/" + (GetFileName(logMiscFilename, false) + ".gz").Replace(".gz", "_" + timestring + ".gz"));
                         swMisc = new StreamWriter(logPath + "/" + GetFileName(logMiscFilename, true), true, Encoding.UTF8, 65535);
                         foreach (string s in logMiscMemory)
                         {
