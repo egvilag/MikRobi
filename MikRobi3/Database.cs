@@ -23,12 +23,117 @@ namespace MikRobi3
             try
             {
                 myConn.Open();
+                myConn.Close();
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                Program.log.Write("database", ex.Message);
             }
-            myConn.Close();
+        }
+
+        public long SQLCommandCount(string command)
+        {
+            long result = -1;
+            MySqlCommand cmd = new MySqlCommand(command, myConn);
+            try
+            {
+                myConn.Open();
+                result = Convert.ToInt64(cmd.ExecuteScalar());
+                myConn.Close();
+            }
+            catch (Exception ex)
+            {
+                Program.log.Write("database", ex.Message);
+            }
+            return result;
+        }
+
+        public int SQLCommandNonQuery(string command)
+        {
+            int result = -1;
+            MySqlCommand cmd = new MySqlCommand(command, myConn);
+            try
+            {
+                myConn.Open();
+                result = cmd.ExecuteNonQuery();
+                myConn.Close();
+            }
+            catch (Exception ex)
+            {
+                Program.log.Write("database", ex.Message);
+            }
+            return result;
+        }
+
+        public string SQLCommandRecord(string command)
+        {
+            string result = "";
+            MySqlCommand cmd = new MySqlCommand(command, myConn);
+            try
+            {
+                myConn.Open();
+                result = Convert.ToString(cmd.ExecuteScalar());
+                myConn.Close();
+            }
+            catch (Exception ex)
+            {
+                Program.log.Write("database", ex.Message);
+            }
+            return result;
+        }
+
+        public List<string> SQLSelectCol(string command, int column)
+        {
+            List<string> result = new List<string>();
+            MySqlCommand cmd = new MySqlCommand(command, myConn);
+            try
+            {
+                MySqlDataReader reader = cmd.ExecuteReader();
+                myConn.Open();
+                while (reader.Read())
+                {
+                    result.Add(reader.GetString(column));
+                }
+                myConn.Close();
+            }
+            catch (Exception ex)
+            {
+                Program.log.Write("database", ex.Message);
+            }
+            return result;
+        }
+
+        public List<List<string>> SQLSelect(string command)
+        {
+            List<string> row;
+            List<List<string>> result = new List<List<string>>();
+            MySqlCommand cmd = new MySqlCommand(command, myConn);
+            try
+            {
+                MySqlDataReader reader = cmd.ExecuteReader();
+                myConn.Open();
+                while (reader.Read())
+                {
+                    row = new List<string>();
+                    for (int i = 0; i < reader.FieldCount; i++)
+                        row.Add(reader.GetString(i));
+                    result.Add(row);
+                }
+                myConn.Close();
+            }
+            catch (Exception ex)
+            {
+                Program.log.Write("database", ex.Message);
+            }
+            return result;
+        }
+
+        public string GetLatestUpdate(bool betaTesting)
+        {
+            string command = "SELECT path FROM `launcher-versions` WHERE stable=";
+            if (betaTesting) command += "0"; else command += "1";
+            command += " ORDER BY date DESC LIMIT 1";
+            return SQLCommandRecord(command);
         }
     }
 }

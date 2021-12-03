@@ -10,6 +10,7 @@ namespace MikRobi3
     class Network
     {
         Socket serverSocket, clientSocket;
+        int bufferSize = 1024;
         byte[] buffer;
 
         public void StartListen(int port, string host)
@@ -18,11 +19,9 @@ namespace MikRobi3
             {
                 serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 serverSocket.Bind(new IPEndPoint(IPAddress.Parse(host), port));
-                serverSocket.Listen(0);
+                serverSocket.Listen(100);
                 serverSocket.BeginAccept(new AsyncCallback(AcceptCallback), null);
                 Console.WriteLine("Listening on " + host + ":" + port);
-
-
             }
             catch (Exception ex)
             {
@@ -49,7 +48,7 @@ namespace MikRobi3
             try
             {
                 int received = clientSocket.EndReceive(AR);
-                string text = Encoding.ASCII.GetString(buffer);
+                string text = Encoding.ASCII.GetString(buffer).Trim();
                 Array.Resize(ref buffer, received);
                 Program.log.Write("security", "Received message: " + text);
                 Array.Resize(ref buffer, clientSocket.ReceiveBufferSize);

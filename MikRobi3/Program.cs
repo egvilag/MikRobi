@@ -11,6 +11,7 @@ namespace MikRobi3
         public static Config config;
         public static Network network;
         public static Database database;
+        public static ClientNetwork clientNetwork;
 
         public static Dictionary<string, string> settings;
 
@@ -47,11 +48,16 @@ namespace MikRobi3
             log.Open();
             log.Write("misc", "Program started.");
 
-            database = new Database();
-            database.TestDB();
+            //database = new Database();
+            //Console.WriteLine(database.GetLatestUpdate(false));
+            //Console.WriteLine(database.GetLatestUpdate(true));
 
-            network = new Network();
-            network.StartListen(Convert.ToInt32(settings["listenport"]), "127.0.0.1");
+            //network = new Network();
+            //network.StartListen(Convert.ToInt32(settings["listenport"]), "127.0.0.1");
+
+            clientNetwork = new ClientNetwork();
+            clientNetwork.StartListening();
+
             Console.WriteLine("Esc to stop.");
             ConsoleKey s;
             do
