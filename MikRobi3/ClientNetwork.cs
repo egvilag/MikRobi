@@ -112,7 +112,7 @@ namespace MikRobi3
 					try
 					{
 						client.messageLength = BitConverter.ToUInt32(SubArray(client.receiveBuffer, 0, 4));
-						client.sb.Append(Encoding.ASCII.GetString(client.receiveBuffer, 4, bytesRead - 4));
+						client.sb.Append(Encoding.UTF8.GetString(client.receiveBuffer, 4, bytesRead - 4));
 						client.messageLength -= Convert.ToUInt32(bytesRead - 4);
 					}
 					catch   // 4asdf
@@ -123,7 +123,7 @@ namespace MikRobi3
 				else
 				{
 					//There might be more data, so store the data received so far.     
-					client.sb.Append(Encoding.ASCII.GetString(client.receiveBuffer, 0, bytesRead));
+					client.sb.Append(Encoding.UTF8.GetString(client.receiveBuffer, 0, bytesRead));
 					client.messageLength -= Convert.ToUInt32(bytesRead);
 				}
    
@@ -141,11 +141,13 @@ namespace MikRobi3
 
 		public void Send(Socket handler, String data)
 		{
-			byte[] byteData = new byte[4 + data.Length];
-
+			//byte[] byteData = new byte[4 + data.Length];
+			byte[] byteData = new byte[4 + Encoding.UTF8.GetBytes(data).Length];
 			BitConverter.GetBytes(data.Length).CopyTo(byteData, 0);
 			//Convert the string data to byte data using ASCII encoding.      
-			Encoding.ASCII.GetBytes(data).CopyTo(byteData, 4);
+			//Encoding.ASCII.GetBytes(data).CopyTo(byteData, 4);
+			BitConverter.GetBytes(Encoding.UTF8.GetByteCount(data)).CopyTo(byteData, 0);
+			Encoding.UTF8.GetBytes(data).CopyTo(byteData, 4);
 			Program.log.Write("misc", byteData.Length + " bytes from " + GetAddress(handler) + " > " + data);
 
 			//Begin sending the data to the remote device.     

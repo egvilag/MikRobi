@@ -9,7 +9,7 @@ namespace MikRobi3
         // Units
         public static Log log;
         public static Config config;
-        public static Network network;
+        //public static Network network;
         public static Database database;
         public static ClientNetwork clientNetwork;
 
@@ -48,9 +48,9 @@ namespace MikRobi3
             log.Open();
             log.Write("misc", "Program started.");
 
-            //database = new Database();
-            //Console.WriteLine(database.GetLatestUpdate(false));
-            //Console.WriteLine(database.GetLatestUpdate(true));
+            database = new Database();
+            Console.WriteLine(database.GetLatestUpdate(false));
+            Console.WriteLine(database.GetLatestUpdate(true));
 
             //network = new Network();
             //network.StartListen(Convert.ToInt32(settings["listenport"]), "127.0.0.1");
@@ -65,7 +65,7 @@ namespace MikRobi3
                 s = Console.ReadKey().Key;
             } while (s != ConsoleKey.Escape);
 
-            network.StopListen();
+            //network.StopListen();
 
             log.Write("misc", "Program Stopped.");
             log.Close();

@@ -32,40 +32,18 @@ namespace MikRobi3
                 string key = parameterString.Split('=')[0];
                 if (firstParameters.Contains(key))
                 {
-                    parameters.Add(key, parameterString.Split('&')[0]);
+                    parameters.Add(key, parameterString.Split('&')[0].Split('=')[1]);
                 }
                 else return;
 
                 //Get the second parameter
-                string secondParameterString = parameterString.Substring(parameterString.IndexOf('&') + 1, parameterString.Length - parameterString.Split('&').Length - 1);
+                string secondParameterString = parameterString.Substring(parameterString.IndexOf('&') + 1, parameterString.Length - parameterString.Split('&')[0].Length - 1);
                 key = secondParameterString.Split('=')[0];
                 if (secondParameters.Contains(key))
                 {
-                    parameters.Add(key, secondParameterString.Substring(secondParameterString.IndexOf('='), secondParameterString.Length - key.Length - 1));
+                    parameters.Add(key, secondParameterString.Substring(secondParameterString.IndexOf('=') + 1, secondParameterString.Length - key.Length - 1));
                 }
                 else return;
-
-                //string key = "";
-                //foreach (string s in parametersArray) // pl gmessage&channelid=0&msg=és&most=asdf
-                //{
-                //    if (s.Contains('='))
-                //    {
-                //        key = s.Split('=')[0];
-                //        switch (parameters.Count)
-                //        {
-                //            case 0:
-                //                if (firstParameters.Contains(key))
-                //                    parameters.Add(key, s.Substring(s.IndexOf('=') + 1, s.Length - key.Length - 1));
-                //                else return;
-                //                break;
-
-                //        }
-                //    }
-                //    else
-                //    {
-                //        parameters[key] += '&' + s;
-                //    }
-                //}
 
                 //Decide what to do
                 switch (commandName)
@@ -73,7 +51,7 @@ namespace MikRobi3
                     case "sendgmessage":
                         foreach (Client cl in Program.clientNetwork.clients)
                         {
-                            Program.clientNetwork.Send(cl.workSocket, parameters["msg"]);
+                            Program.clientNetwork.Send(cl.workSocket, commandName + "&channelid=" + parameters["channelid"] + "&msg=" + parameters["msg"]);
                         }
                         break;
                     default:
