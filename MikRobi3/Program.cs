@@ -49,8 +49,9 @@ namespace MikRobi3
             log.Write("misc", "Program started.");
 
             database = new Database();
-            Console.WriteLine(database.GetLatestUpdate(false));
-            Console.WriteLine(database.GetLatestUpdate(true));
+            database.TestDB();
+            //Console.WriteLine(database.GetLatestUpdate(false));
+            //Console.WriteLine(database.GetLatestUpdate(true));
 
             //network = new Network();
             //network.StartListen(Convert.ToInt32(settings["listenport"]), "127.0.0.1");

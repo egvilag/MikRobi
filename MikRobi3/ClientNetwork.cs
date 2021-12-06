@@ -9,7 +9,7 @@ namespace MikRobi3
 {
 	//State object for reading client data asynchronously      
 	public class Client
-	{     
+	{
 		public Socket workSocket = null;
 		public const int receiveBufferSize = 1024;  
 		public byte[] receiveBuffer = new byte[receiveBufferSize];
@@ -18,6 +18,26 @@ namespace MikRobi3
 		public StringBuilder sb = new StringBuilder();
 
 		public uint messageLength = 0;
+		
+		//user status
+		//
+		//0: email not verified
+		//1: email verified, logged out
+		//2: logged in
+		//3: banned
+		public uint status;
+
+		public long userid;
+		public string username;
+
+		//user role
+		//
+		//a: admin
+		//m: moderator
+		//o: team owner
+		//t: team admin
+		//u: user
+		public char role;
 	}
 
 	class ClientNetwork

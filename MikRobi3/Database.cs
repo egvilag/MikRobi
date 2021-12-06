@@ -31,14 +31,14 @@ namespace MikRobi3
             }
         }
 
-        public long SQLCommandCount(string command)
+        public int SQLCommandCount(string command)
         {
-            long result = -1;
+            int result = -1;
             MySqlCommand cmd = new MySqlCommand(command, myConn);
             try
             {
                 myConn.Open();
-                result = Convert.ToInt64(cmd.ExecuteScalar());
+                result = Convert.ToInt32(cmd.ExecuteScalar());
                 myConn.Close();
             }
             catch (Exception ex)
@@ -128,12 +128,43 @@ namespace MikRobi3
             return result;
         }
 
-        public string GetLatestUpdate(bool betaTesting)
+        public string GetLatestUpdate(bool betaTesting, string hash)
         {
             string command = "SELECT path FROM `launcher-versions` WHERE stable=";
             if (betaTesting) command += "0"; else command += "1";
-            command += " ORDER BY date DESC LIMIT 1";
-            return SQLCommandRecord(command);
+            command += " AND checksum LIKE '" + hash + "'";
+            int results = SQLCommandCount(command);
+            switch (results)
+            {
+                
+                case 0:  //Launcher executable is bad or tampered
+                    command = "SELECT path FROM `launcher-versions` WHERE stable=";
+                    if (betaTesting) command += "0"; else command += "1";
+                    command += " ORDER BY date DESC LIMIT 1";
+                    return "2&" + SQLCommandRecord(command);
+                    break;
+
+                case 1: //Is running current version
+                    command = "SELECT checksum FROM `launcher-versions` WHERE stable=";
+                    if (betaTesting) command += "0"; else command += "1";
+                    command += " ORDER BY date DESC LIMIT 1";
+                    string latestHash = SQLCommandRecord(command);
+                    if (hash == latestHash)
+                        return "0";
+                    else
+                    {
+                        command = "SELECT path FROM `launcher-versions` WHERE stable=";
+                        if (betaTesting) command += "0"; else command += "1";
+                        command += " ORDER BY date DESC LIMIT 1";
+                        string path = SQLCommandRecord(command);
+                        return "1&" + path;
+                    }
+                    break;
+
+                default: //Error while running SQL SELECT
+                    return "E";
+                    break;
+            }
         }
     }
 }
