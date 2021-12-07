@@ -8,20 +8,24 @@ namespace MikRobi3
 {
     static class CommandProcessor
     {
+        //A list with allowed parameter in the command string
         public static List<string> allowedParameters = new List<string>()
         {
             "betatesting", "user", "username", "channelid", "messageid", "channelname", "groupid", "groupname",
             "hash", "sign", "role", "time", "msg"
         };
 
+        //Process message if it contains a command
         public static void Process(Socket socket, string command)
         {
-            //At least one parameter with valid format
+            //At least one parameter with valid format (contains '&' and '=' character)
             if ((command.Split('&').Length > 1) && (command.Split('=').Length > 1))
             {
+                //Separate the command identifier from the parameters
                 string commandName = command.Split('&')[0];
                 string parameterString = command.Substring(command.IndexOf('&') + 1, command.Length - commandName.Length - 1);
-                //string[] parametersArray = new string[2];
+
+                //Init a dictionary to store the parameters
                 Dictionary<string, string> parameters = new Dictionary<string, string>();
 
                 //Get the first parameter
@@ -41,7 +45,7 @@ namespace MikRobi3
                 }
                 else return;
 
-                //Decide what to do
+                //Lets's see the command to decide what to do
                 switch (commandName)
                 {
                     case "sendgmessage": //New global message
@@ -60,14 +64,14 @@ namespace MikRobi3
                                 Program.clientNetwork.Send(socket, "update&status=0");
                                 break;
                             case '1': //Running an outdated version
-                                Program.clientNetwork.Send(socket, "update&status=1&link=" + result.Substring(result.IndexOf('&'), result.Length - 2));
+                                Program.clientNetwork.Send(socket, "update&status=1&link=" + result.Substring(result.IndexOf('&') + 1, result.Length - 2));
                                 break;
                             case '2': //Running a bad/tampered executable
-                                Program.clientNetwork.Send(socket, "update&status=2&link=" + result.Substring(result.IndexOf('&'), result.Length - 2));
+                                Program.clientNetwork.Send(socket, "update&status=2&link=" + result.Substring(result.IndexOf('&') + 1, result.Length - 2));
                                 break;
                         }
                         break;
-
+                    
 
 
 
@@ -76,8 +80,6 @@ namespace MikRobi3
                 }
             }
             else return;
-
-            
         }
     }
 }

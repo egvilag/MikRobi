@@ -56,6 +56,7 @@ namespace MikRobi3
 			return result;
 		}
 
+		//Get the ip and port of a socket in 'ipaddress:port' format. Return empty string if socket is not connected.
 		public string GetAddress(Socket socket)
         {
 			IPEndPoint remoteIpEndPoint = socket.RemoteEndPoint as IPEndPoint;
@@ -67,27 +68,36 @@ namespace MikRobi3
 			return "";
 		}
 
+		//Entry point of the unit. It runs in loop and processes new connections
 		public void StartListening()
-		{     
+		{   
+			//Automatically determine the IP address (currently this method is not in use)
 			//IPHostEntry ipHostInfo = Dns.Resolve(Dns.GetHostName()); 
 			//IPAddress ipAddress = ipHostInfo.AddressList[0];
+			
+			//Use the local IP
 			IPAddress ipAddress = IPAddress.Parse("127.0.0.1");
 			IPEndPoint localEndPoint = new IPEndPoint(ipAddress, Convert.ToInt32(Program.settings["listenport"]));
 
 			//Create a TCP/IP socket.     
-			Socket listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+			Socket listener; 
 
 			//Bind the socket to the local endpoint and listen for incoming connections.      
 			try
 			{
+				listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 				listener.Bind(localEndPoint);
-				listener.Listen(100);
+				listener.Listen(5);	//Queue is limited by 5
 				Console.WriteLine(" Waiting for a connection... ");
+
+				//Run continuosly since it's  a service
 				while (true)
 				{
+					//Nothing is being done, so reset the event
 					allDone.Reset();
 					//Start an asynchronous socket to listen for connections.     
 					listener.BeginAccept(new AsyncCallback(AcceptCallback), listener);
+					//Wait until a client arrives
 					allDone.WaitOne();
 				}
 			}
@@ -97,33 +107,61 @@ namespace MikRobi3
 			}
 		}
 
+		//Client is succesfully connected. Start to listen for incoming messages from them.
 		public void AcceptCallback(IAsyncResult ar)
 		{
+			//Fire the event so the listener can continue processing other incoming connections
 			allDone.Set();
 
-			//Get the socket that handles the client request.     
-			Socket listener = (Socket)ar.AsyncState;
-			Socket handler = listener.EndAccept(ar);
+			//Get the socket that handles the client request.
+			Socket listenerSocket = (Socket)ar.AsyncState;
+			Socket handlerSocket = listenerSocket.EndAccept(ar);
 
-			Program.log.Write("security", "New Client connected from " + GetAddress(handler));
+			Program.log.Write("security", "New Client connected from " + GetAddress(handlerSocket));
 
-			//Create the state object.     
+			//Create the client object.     
 			Client client = new Client();
-			client.workSocket = handler;
+			client.workSocket = handlerSocket;
 			clients.Add(client);
-			handler.BeginReceive(client.receiveBuffer, 0, Client.receiveBufferSize, 0, new AsyncCallback(ReadCallback), client);
+
+			//Start listening for incoming packets
+			try
+			{
+				handlerSocket.BeginReceive(client.receiveBuffer, 0, Client.receiveBufferSize, 0, new AsyncCallback(ReadCallback), client);
+			}
+			catch (Exception ex)
+            {
+				Program.log.Write("error", ex.Message);
+				handlerSocket.Close();
+				handlerSocket.Dispose();
+				clients.Remove(client);
+			}
 		}
 
+
+		//A packet arrived!
 		public void ReadCallback(IAsyncResult ar)
 		{
 			String content = String.Empty;
-			//Retrieve the state object and the handler socket      
-			//from the asynchronous state object.     
 			Client client = (Client)ar.AsyncState; 
-			Socket handler = client.workSocket;
+			Socket handlerSocket = client.workSocket;
 
-			//Read data from the client socket.      
-			int bytesRead = handler.EndReceive(ar);
+			//Read data from the client socket.
+			int bytesRead;
+			try
+			{
+				bytesRead = handlerSocket.EndReceive(ar);
+			}
+			catch (Exception ex)
+            {
+				Program.log.Write("error", ex.Message);
+				handlerSocket.Close();
+				handlerSocket.Dispose();
+				clients.Remove(client);
+				return;
+            }
+
+			//If the packet is not empty
 			if (bytesRead > 0)
 			{
 				//If the message length is not set, then read the first 4 bytes that should indicate it
@@ -135,8 +173,10 @@ namespace MikRobi3
 						client.sb.Append(Encoding.UTF8.GetString(client.receiveBuffer, 4, bytesRead - 4));
 						client.messageLength -= Convert.ToUInt32(bytesRead - 4);
 					}
-					catch   // 4asdf
+					catch (Exception ex)
 					{
+						//client.sb.Clear();
+						Program.log.Write("error", ex.Message);
 						return;
 					}
 				}
@@ -146,19 +186,37 @@ namespace MikRobi3
 					client.sb.Append(Encoding.UTF8.GetString(client.receiveBuffer, 0, bytesRead));
 					client.messageLength -= Convert.ToUInt32(bytesRead);
 				}
-   
+				
+				//Trim the message then store is in a temp variable
 				content = client.sb.ToString().Trim();
 				client.sb.Clear();
-				if (client.messageLength == 0)
-				{
-					CommandProcessor.Process(handler, content);
 
-					
+				//Process the message
+				if (client.messageLength == 0)
+					CommandProcessor.Process(handlerSocket, content);
+
+				//Continue listening
+				try
+				{
+					handlerSocket.BeginReceive(client.receiveBuffer, 0, Client.receiveBufferSize, 0, new AsyncCallback(ReadCallback), client);
 				}
-				handler.BeginReceive(client.receiveBuffer, 0, Client.receiveBufferSize, 0, new AsyncCallback(ReadCallback), client);
+				catch (Exception ex)
+                {
+					Program.log.Write("error", ex.Message);
+					handlerSocket.Close();
+					handlerSocket.Dispose();
+					clients.Remove(client);
+				}
 			}
+			else
+				if (!SocketConnected(handlerSocket))
+				{
+					handlerSocket.Dispose();
+					clients.Remove(client);
+				}
 		}
 
+		//Start sending some data
 		public void Send(Socket handler, String data)
 		{
 			//byte[] byteData = new byte[4 + data.Length];
@@ -170,27 +228,49 @@ namespace MikRobi3
 			Encoding.UTF8.GetBytes(data).CopyTo(byteData, 4);
 			Program.log.Write("misc", byteData.Length + " bytes from " + GetAddress(handler) + " > " + data);
 
-			//Begin sending the data to the remote device.     
-			handler.BeginSend(byteData, 0, byteData.Length, 0, new AsyncCallback(SendCallback), handler);
-		}
-
-		private void SendCallback(IAsyncResult ar)
-		{
+			//Begin sending the data to the remote device.    
 			try
 			{
-				//Retrieve the socket from the state object.     
-				Socket handler = (Socket)ar.AsyncState;
+				handler.BeginSend(byteData, 0, byteData.Length, 0, new AsyncCallback(SendCallback), handler);
+			}
+			catch (Exception ex)
+			{
+				Program.log.Write("error", ex.Message);
+			}
+		}
 
+		//The async method to send
+		private void SendCallback(IAsyncResult ar)
+		{ 
+			Client client = (Client)ar.AsyncState;
+			Socket handlerSocket = client.workSocket;
+			try
+			{
 				//Complete sending the data to the remote device.      
-				int bytesSent = handler.EndSend(ar);
+				int bytesSent = handlerSocket.EndSend(ar);
 
-				//handler.Shutdown(SocketShutdown.Both);
-				//handler.Close();
+				//Originally this was where the story ended. Since we won't stop working, we mustn't close the socket.
+				//handlerSocket.Shutdown(SocketShutdown.Both);
+				//handlerSocket.Close();
 			}
 			catch (Exception e)
 			{
 				Program.log.Write("error", e.Message);
+				handlerSocket.Close();
+				handlerSocket.Dispose();
+				clients.Remove(client);
 			}
+		}
+
+		//Check if a socket is still connected
+		private bool SocketConnected(Socket s)
+		{
+			bool part1 = s.Poll(1000, SelectMode.SelectRead);
+			bool part2 = (s.Available == 0);
+			if (part1 && part2)
+				return false;
+			else
+				return true;
 		}
 	}
 }

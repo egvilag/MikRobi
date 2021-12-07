@@ -11,6 +11,7 @@ namespace MikRobi3
         string connStr;
         MySqlConnection myConn;
 
+        //Init the database connection with the connection string made from the parameters specified in the config file
         public Database()
         {
             connStr = "Server=" + Program.settings["sql-server"] + "; Port=" + Program.settings["sql-port"] + "; Database=" + Program.settings["sql-database"] +
@@ -18,6 +19,7 @@ namespace MikRobi3
             myConn = new MySqlConnection(connStr);
         }
 
+        //Just a quick test with opening then closing the DB connection
         public void TestDB()
         {
             try
@@ -31,6 +33,7 @@ namespace MikRobi3
             }
         }
 
+        //Launch an SQL SELECT and return the number of the resulting rows
         public int SQLCommandCount(string command)
         {
             int result = -1;
@@ -48,6 +51,7 @@ namespace MikRobi3
             return result;
         }
 
+        //Launch an SQL command and return the number of affected rows
         public int SQLCommandNonQuery(string command)
         {
             int result = -1;
@@ -65,6 +69,7 @@ namespace MikRobi3
             return result;
         }
 
+        //Launch an SQL SELECT and return the first record of the first column
         public string SQLCommandRecord(string command)
         {
             string result = "";
@@ -82,6 +87,7 @@ namespace MikRobi3
             return result;
         }
 
+        //Launch an SQL SELECT and return a list of the records of the specified column
         public List<string> SQLSelectCol(string command, int column)
         {
             List<string> result = new List<string>();
@@ -103,6 +109,7 @@ namespace MikRobi3
             return result;
         }
 
+        //Launch an SQL SELECT and return the entire results table
         public List<List<string>> SQLSelect(string command)
         {
             List<string> row;
@@ -128,6 +135,7 @@ namespace MikRobi3
             return result;
         }
 
+        //Return the link of the latest version of the Launcher. Determine if the sent hash indicates a bad or outdated Launcher.
         public string GetLatestUpdate(bool betaTesting, string hash)
         {
             string command = "SELECT path FROM `launcher-versions` WHERE stable=";
@@ -142,7 +150,6 @@ namespace MikRobi3
                     if (betaTesting) command += "0"; else command += "1";
                     command += " ORDER BY date DESC LIMIT 1";
                     return "2&" + SQLCommandRecord(command);
-                    break;
 
                 case 1: //Is running current version
                     command = "SELECT checksum FROM `launcher-versions` WHERE stable=";
@@ -159,11 +166,9 @@ namespace MikRobi3
                         string path = SQLCommandRecord(command);
                         return "1&" + path;
                     }
-                    break;
 
                 default: //Error while running SQL SELECT
                     return "E";
-                    break;
             }
         }
     }
