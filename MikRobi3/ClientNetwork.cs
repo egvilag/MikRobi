@@ -18,7 +18,9 @@ namespace MikRobi3
 		public StringBuilder sb = new StringBuilder();
 
 		public uint messageLength = 0;
-		
+
+		public byte[] salt = new byte[64];
+
 		//user status
 		//
 		//0: email not verified
@@ -217,16 +219,42 @@ namespace MikRobi3
 		}
 
 		//Start sending some data
-		public void Send(Socket handler, String data)
+		public void Send(Socket handler, String message)
 		{
 			//byte[] byteData = new byte[4 + data.Length];
-			byte[] byteData = new byte[4 + Encoding.UTF8.GetBytes(data).Length];
-			BitConverter.GetBytes(data.Length).CopyTo(byteData, 0);
+			byte[] byteData = new byte[4 + Encoding.UTF8.GetBytes(message).Length];
+			//BitConverter.GetBytes(data.Length).CopyTo(byteData, 0);
 			//Convert the string data to byte data using ASCII encoding.      
 			//Encoding.ASCII.GetBytes(data).CopyTo(byteData, 4);
-			BitConverter.GetBytes(Encoding.UTF8.GetByteCount(data)).CopyTo(byteData, 0);
-			Encoding.UTF8.GetBytes(data).CopyTo(byteData, 4);
-			Program.log.Write("misc", byteData.Length + " bytes from " + GetAddress(handler) + " > " + data);
+			BitConverter.GetBytes(Encoding.UTF8.GetByteCount(message)).CopyTo(byteData, 0);
+			Encoding.UTF8.GetBytes(message).CopyTo(byteData, 4);
+			Program.log.Write("misc", byteData.Length + " bytes from " + GetAddress(handler) + " > " + message);
+
+			//Begin sending the data to the remote device.    
+			try
+			{
+				handler.BeginSend(byteData, 0, byteData.Length, 0, new AsyncCallback(SendCallback), handler);
+			}
+			catch (Exception ex)
+			{
+				Program.log.Write("error", ex.Message);
+			}
+		}
+		//Start sending some data
+		public void Send(Socket handler, String message, byte[] data)
+		{
+
+
+			//byte[] byteData = new byte[4 + data.Length];
+			byte[] byteData = new byte[4 + data.Length + Encoding.UTF8.GetBytes(message).Length];
+			//BitConverter.GetBytes(data.Length).CopyTo(byteData, 0);
+			//Convert the string data to byte data using ASCII encoding.      
+			//Encoding.ASCII.GetBytes(data).CopyTo(byteData, 4);
+			BitConverter.GetBytes(Encoding.UTF8.GetByteCount(message) + data.Length).CopyTo(byteData, 0);
+			Encoding.UTF8.GetBytes(message).CopyTo(byteData, 4);
+			data.CopyTo(byteData, 4 + Encoding.UTF8.GetByteCount(message));
+
+			Program.log.Write("misc", byteData.Length + " bytes from " + GetAddress(handler) + " > " + message + " (+ data)");
 
 			//Begin sending the data to the remote device.    
 			try
