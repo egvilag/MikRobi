@@ -178,11 +178,11 @@ namespace MikRobi3
                             //Program.clientNetwork.Send(socket, "update&status=0");
                             break;
                         case '1': //Running an outdated version
-                            Program.clientNetwork.Send(socket, updateJSON.GetResult(1, result.Substring(result.IndexOf('&') + 1, result.Length - 2));
+                            Program.clientNetwork.Send(socket, updateJSON.GetResult(1, result.Substring(result.IndexOf('&') + 1, result.Length - 2)));
                             //Program.clientNetwork.Send(socket, "update&status=1&link=" + result.Substring(result.IndexOf('&') + 1, result.Length - 2));
                             break;
                         case '2': //Running a bad/tampered executable
-                            Program.clientNetwork.Send(socket, updateJSON.GetResult(2, result.Substring(result.IndexOf('&') + 1, result.Length - 2));
+                            Program.clientNetwork.Send(socket, updateJSON.GetResult(2, result.Substring(result.IndexOf('&') + 1, result.Length - 2)));
                             //Program.clientNetwork.Send(socket, "update&status=2&link=" + result.Substring(result.IndexOf('&') + 1, result.Length - 2));
                             break;
                     }
