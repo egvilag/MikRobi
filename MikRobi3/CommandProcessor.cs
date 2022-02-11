@@ -166,18 +166,24 @@ namespace MikRobi3
                     break;
 
                 case "update": //Asking for update link
+                    
                     bool beta = parameters["betatesting"] == "1";
-                    string result = Program.database.GetLatestUpdate(beta, parameters["hash"]);
+                    string hash = parameters["hash"];
+                    string result = Program.database.GetLatestUpdate(beta, hash);
+                    UpdateJSON updateJSON = new UpdateJSON();
                     switch (result[0])
                     {
                         case '0': //Running the latest version
-                            Program.clientNetwork.Send(socket, "update&status=0");
+                            Program.clientNetwork.Send(socket, updateJSON.GetResult(0, ""));
+                            //Program.clientNetwork.Send(socket, "update&status=0");
                             break;
                         case '1': //Running an outdated version
-                            Program.clientNetwork.Send(socket, "update&status=1&link=" + result.Substring(result.IndexOf('&') + 1, result.Length - 2));
+                            Program.clientNetwork.Send(socket, updateJSON.GetResult(1, result.Substring(result.IndexOf('&') + 1, result.Length - 2));
+                            //Program.clientNetwork.Send(socket, "update&status=1&link=" + result.Substring(result.IndexOf('&') + 1, result.Length - 2));
                             break;
                         case '2': //Running a bad/tampered executable
-                            Program.clientNetwork.Send(socket, "update&status=2&link=" + result.Substring(result.IndexOf('&') + 1, result.Length - 2));
+                            Program.clientNetwork.Send(socket, updateJSON.GetResult(2, result.Substring(result.IndexOf('&') + 1, result.Length - 2));
+                            //Program.clientNetwork.Send(socket, "update&status=2&link=" + result.Substring(result.IndexOf('&') + 1, result.Length - 2));
                             break;
                     }
                     break;
